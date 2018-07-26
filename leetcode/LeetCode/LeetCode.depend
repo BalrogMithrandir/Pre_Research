@@ -1,0 +1,8 @@
+# depslib dependency file v1.0
+1530605672 source:e:\workspace\pre-research\leetcode\leetcode\main.c
+	<stdio.h>
+	<stdlib.h>
+
+1530608735 source:e:\workspace\pre-research\leetcode\myatoi.c
+	<stdio.h>
+

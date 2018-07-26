@@ -1,0 +1,33 @@
+# depslib dependency file v1.0
+1532072816 source:e:\workspace\pre-research\algorithm\heapsort.c
+	<stdio.h>
+	"Sort.h"
+
+1532091483 source:e:\workspace\pre-research\algorithm\algorithm\main.c
+	<stdio.h>
+	<stdlib.h>
+	<time.h>
+	"Sort.h"
+
+1532091516 e:\workspace\pre-research\algorithm\sort.h
+
+1532090659 source:e:\workspace\pre-research\algorithm\mergesort.c
+	<stdio.h>
+	"Sort.h"
+
+1532087403 source:e:\workspace\pre-research\algorithm\quicksort.c
+	<stdio.h>
+	"Sort.h"
+
+1532091479 source:e:\workspace\pre-research\algorithm\countsort.c
+	<stdio.h>
+	"Sort.h"
+
+1532088078 source:e:\workspace\pre-research\algorithm\insertsort.c
+	<stdio.h>
+	"Sort.h"
+
+1532089710 source:e:\workspace\pre-research\algorithm\bubblesort.c
+	<stdio.h>
+	"Sort.h"
+
