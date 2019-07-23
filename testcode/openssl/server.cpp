@@ -15,11 +15,13 @@
 #define MAXBUF 1024
 
 #define SERVER_CERT_SUPPLY
-#define SERVER_CERT_SUPPLY_UNMATCH
-#define FLAG_FAIL_IF_NO_PEER_CERT
-//#define FLAG_NONE_VERIFY_PEER
-#define VERIFY_HOST
-#define USER_CALLBACK
+//#define SERVER_CERT_SUPPLY_UNMATCH_DOMAIN
+#define FAIL_IF_NO_PEER_CERT
+//#define NONE_VERIFY_PEER
+//#define VERIFY_HOST
+//#define USER_CALLBACK
+#define USE_CA_DIR
+#define JUST_ACCEPT_DET_CA
 
 void ShowCerts(SSL * ssl)
 {
@@ -35,6 +37,8 @@ void ShowCerts(SSL * ssl)
     一定要先调用SSL_get_peer_certificate。这个是api的bug*/
     if(SSL_get_verify_result(ssl) == X509_V_OK) {
         printf("证书验证通过\n");
+    } else {
+        printf("证书验证失败\n");
     }
     if (cert != NULL) {
         printf("数字证书信息:\n");
@@ -50,10 +54,42 @@ void ShowCerts(SSL * ssl)
     }
 }
 
-int verifycallback(int preverify_ok, X509_STORE_CTX *pctx) {
-    return 1;
-}
+int verify_callback_func(int preverify_ok, X509_STORE_CTX *ctx) {
+    if (preverify_ok != 1) {
+        ERR_print_errors_fp(stdout);
+        return 0;
+    }
 
+    /*获取完整的证书链 从rootCA证书到用户证书*/
+    STACK_OF(X509) *cachain = X509_STORE_CTX_get1_chain(ctx);
+    if (NULL != cachain) {
+        int certNum = sk_X509_num(cachain);  /*证书链深度*/
+
+        /*使用API sk_X509_value遍历证书链时，index=0对应用户证书，index=1对应用户证书的CA证书，
+        index=2对应再上一级CA证书，以此类推。index=sk_X509_num(cachain)-1 对应rootCA证书*/
+        X509 *cert = sk_X509_value(cachain, 1);  /*index=1对应用户证书的CA证书*/
+        if (NULL == cert) {
+            return 0;
+        }
+
+        char  CN[256] = {0};
+        X509_NAME_get_text_by_NID(X509_get_subject_name(cert), NID_commonName, CN, sizeof(CN));
+        printf("comman name: %s\n", CN);
+        
+        /*校验CN是否与目标域名一致：一致，返回1；不一致，返回0*/
+        char expect_DN[] = "localhosttest_secondaryCA";
+        if (0 == strcmp(expect_DN, CN)) {
+            printf("域名匹配\n");
+        } else {
+            printf("域名不匹配\n");
+            return 0;
+        }   
+    } else {
+        return 0; /*没有证书信息*/
+    }
+
+    return 1;  /*返回1，ssl连接会继续建立，无论之前是否发生了错误；返回0，连接建立立即终止*/
+}
 
 int main(int argc, char **argv) {
     int sockfd, new_fd;
@@ -64,7 +100,7 @@ int main(int argc, char **argv) {
     SSL_CTX *ctx;
 
     myport = 7838;
-    lisnum = 2;
+    lisnum = 10;
 
     /* SSL 库初始化 */
     SSL_library_init();
@@ -85,33 +121,40 @@ int main(int argc, char **argv) {
     
     int (*verify_callback)(int, X509_STORE_CTX *) = NULL;
 #if defined(USER_CALLBACK)
-    verify_callback = &verifycallback;
+    verify_callback = &verify_callback_func;
 #endif
 
-    // 双向验证
-    // SSL_VERIFY_PEER---要求对证书进行认证，没有证书也会放行
-    // SSL_VERIFY_FAIL_IF_NO_PEER_CERT---要求客户端需要提供证书，但验证发现单独使用没有证书也会放行
-#ifdef FLAG_FAIL_IF_NO_PEER_CERT
+    // 双向认证
+    // SSL_VERIFY_PEER---配置openssl对证书进行认证，证书不匹配会报错，但是没有证书不会报错
+    // SSL_VERIFY_FAIL_IF_NO_PEER_CERT---强制要求客户端需要提供证书
+    // SSL_VERIFY_NONE---不对对端证书进行验证，即使对端证书不合法，连接依然可以建立
+#ifdef FAIL_IF_NO_PEER_CERT
     SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, verify_callback);
-#elif defined(FLAG_NONE_VERIFY_PEER)
+#elif defined(NONE_VERIFY_PEER)
     SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, verify_callback);
 #else
     SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, verify_callback);
 #endif
 
-#ifdef SERVER_CERT_SUPPLY_UNMATCH
-    std::string server_cer = "/home/caros/secure/otawebsrv.cer";
-    std::string server_key = "/home/caros/secure/otawebsrv.key";
+#ifdef SERVER_CERT_SUPPLY_UNMATCH_DOMAIN
+    std::string server_cer = "/home/caros/src/testcert/cert/server_unmatchdomain.crt";
+    std::string server_key = "/home/caros/src/testcert/cert/server_unmatchdomain.key";
 #else
-    std::string server_cer = "/home/caros/src/testcert/middleca/server/server.cert";
-    std::string server_key = "/home/caros/src/testcert/middleca/server/serverkey.pem";
+    std::string server_cer = "/home/caros/src/testcert/cert/server.crt";
+    std::string server_key = "/home/caros/src/testcert/cert/server.key"; 
 #endif
-    std::string ca = "/home/caros/src/testcert/ca.crt";
+    /*std::string ca = "/home/caros/src/testcert/rootca/client_chain1.crt";*/
+    std::string ca = "/home/caros/secure/root_hub.cer";
     std::string cadir = "/home/caros/src/testcert/rootca";
 
     // 设置信任根证书
-//    if (SSL_CTX_load_verify_locations(ctx, ca.c_str(), NULL) <= 0){
-      if (SSL_CTX_load_verify_locations(ctx, NULL, cadir.c_str()) <= 0){
+#if defined(USE_CA_DIR)
+    printf("%d\n", __LINE__);
+    if (SSL_CTX_load_verify_locations(ctx, NULL, cadir.c_str()) <= 0) {
+#else
+    printf("%d\n", __LINE__);
+    if (SSL_CTX_load_verify_locations(ctx, ca.c_str(), NULL) <= 0) {
+#endif
         ERR_print_errors_fp(stdout);
         exit(1);
     }
@@ -133,6 +176,18 @@ int main(int argc, char **argv) {
         exit(1);
     }
 #endif
+#if defined(JUST_ACCEPT_DET_CA)
+    std::string accept_ca = "/home/caros/src/testcert/rootca/client_secondaryca1.crt";
+    STACK_OF(X509_NAME) *accept_CA_stack = SSL_load_client_CA_file(accept_ca.c_str());
+    if (NULL == accept_CA_stack) {
+        printf("get accept_CA_stack fialed\n");
+        ERR_print_errors_fp(stdout);
+        exit(1);
+    }
+
+    SSL_CTX_set_client_CA_list(ctx, accept_CA_stack);
+#endif
+
     /* 开启一个 socket 监听 */
     if ((sockfd = socket(PF_INET, SOCK_STREAM, 0)) == -1) {
         perror("socket");
@@ -179,12 +234,12 @@ int main(int argc, char **argv) {
         ssl = SSL_new(ctx);
 
 #ifdef VERIFY_HOST
-    /* Enable automatic hostname checks */
-    const char clientname[] = "localhost";
-    if (!X509_VERIFY_PARAM_set1_host(SSL_get0_param(ssl), clientname, sizeof(clientname) - 1)) {
-        ERR_print_errors_fp(stdout);
-        return 0;
-    }
+        /* Enable automatic hostname checks */
+        const char clientname[] = "localhost";
+        if (!X509_VERIFY_PARAM_set1_host(SSL_get0_param(ssl), clientname, sizeof(clientname) - 1)) {
+            ERR_print_errors_fp(stdout);
+            return 0;
+        }
 #endif
 
         /* 将连接用户的 socket 加入到 SSL */

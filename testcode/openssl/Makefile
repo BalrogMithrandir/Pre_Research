@@ -46,4 +46,4 @@ $(SERVERTARGET): $(SERVEROBJS)
 
 
 clean:
-	$(DEL)  $(TARGET) *.o
+	$(DEL)  $(TARGET) *.o client server
