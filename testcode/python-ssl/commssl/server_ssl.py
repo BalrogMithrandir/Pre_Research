@@ -1,9 +1,4 @@
 import os, sys, socket, ssl, time
-sys.path.append('/home/caros/secure_upgrade/python')
-try:
-    import secksproxy_export
-except ImportError:
-    print 'Warning: secksproxy_export import fail'
 
 bindsocket = socket.socket()
 print( "socket create success" )
@@ -47,21 +42,18 @@ def deal_with_client(connstream):
 while True:
     newsocket, fromaddr = bindsocket.accept()
     print( "socket accept one client" )
-    ca_certs = "/home/caros/secure" 
-    alias = 'otawebsrv'
     ssl_ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
-#    cert = secksproxy_export.export_proxy(1, 0, alias)
-#    key = secksproxy_export.export_proxy(0, 0, alias)
-#    ssl_ctx.load_cert_chain_by_mem(cert[0], key[0])
-    cer_file = "/home/caros/secure/otawebsrv.cer"
-    key_file = "/home/caros/secure/otawebsrv.key"
+
+    cacert = "../../testcert/newroot_by_hanchangqing/iot-idg-ca.cer" 
+    cer_file = "../../testcert/server.cer"
+    key_file = "../../testcert/server.key"
     
 #    pipe_file = "/tmp/file"
 #    pipeout = os.open(pipe_file, os.O_RDONLY)
 
 #    s = os.read(pipeout, 10000)
     ssl_ctx.load_cert_chain(cer_file, key_file) 
-    ssl_ctx.load_verify_locations(ca_certs + "/root_hub.cer")
+    ssl_ctx.load_verify_locations(cacert, "../../testcert/newroot_by_hanchangqing/")
     ssl_ctx.verify_mode = ssl.CERT_REQUIRED
     connstream = ssl_ctx.wrap_socket(newsocket, server_side=True)
     try:

@@ -1,39 +1,22 @@
 import os, sys, socket, ssl, pprint,time, stat
-sys.path.append('/home/caros/secure_upgrade/python')
-try:
-    import secksproxy_export
-except ImportError:
-    print 'Warning: secksproxy_export import fail'
+
 start=time.time()
 cnt=0
 while True: 
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     # require a certificate from the server
-    # capath = "/home/caros/src/python-ssl-test/cert/second-ca.crt"
-    capath = "/home/caros/secure/otawebsrv_root.pem"
-    alias = 'ota'
+
+    capath = "../../testcert/root.cer"
+    certpath = "../../testcert/vin.cer"
+    keypath = "../../testcert/vin.key"
+
     ssl_ctx = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
     ssl_ctx.check_hostname = False
-    cert = secksproxy_export.export_proxy(1, 0, alias)
-    key = secksproxy_export.export_proxy(0, 0, alias)
-    
-    tmpcertpath = "./tmpcert.cer"
-    certfile = open(tmpcertpath, 'w')
-    certfile.write(cert[0])
-    
-    tmpkeypath = "./tmpkey.key"
-    keyfile = open(tmpkeypath, 'w')
-    keyfile.write(key[0])
 
-    certfile.close()
-    keyfile.close()
-
-    ssl_ctx.load_cert_chain(tmpcertpath, tmpkeypath)
+    ssl_ctx.load_cert_chain(certpath, keypath)
     ssl_ctx.load_verify_locations(capath)
     ssl_ctx.verify_mode = ssl.CERT_REQUIRED
     ssl_sock = ssl_ctx.wrap_socket(s)
-    os.remove(tmpcertpath)
-    os.remove(tmpkeypath)
     
     ssl_sock.connect(('127.0.0.1', 10023))
     
