@@ -1,9 +1,0 @@
-[2020-01-20 19:13:48] [INFO] [32mTry to update client ...[0m
-[2020-01-20 19:13:49] [ERROR] [31m
-[Error:6014] Update bcloud client failed
-: get new client tar package from remote failed: run_shell_cmd_in_subprocess Exception for wget http://bcloud-buildkit.bj.bcebos.com/client/bcloud_linux_client_1.0.150.1.tar.bz2 -O /home/caros/.BCloud/client.1.0.150.1.tar.bz2: 'FlattenCacheManager' object has no attribute 'dep_client'[0m
-[2020-01-20 19:13:49] [INFO] [32mHow to fix:
-	http://wenda.baidu.com/ask/question/57445
-[0m
-[2020-01-20 19:13:49] [ERROR] [31munknown subcommand: ./test
-Type 'bcloud help' for usage[0m
