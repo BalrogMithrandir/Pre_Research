@@ -1,0 +1,53 @@
+CC = g++
+AR = ar
+
+DEL = rm -f
+
+CFLAGS +=  \
+    -Wall -g -O0 -std=c++11 -Wl,-rpath=${ORIGIN}../gmssl_op_x86_64/lib 
+
+BUILD_DIR=.
+SRC_DIR=.
+SDK_DIR=..
+
+EXTERNAL_LIB_NAME := -lssl \
+	-lcrypto
+
+
+#EXTERNAL_LIB_DIR=/usr/local/ssl/lib
+EXTERNAL_LIB_DIR=../gmssl_op_x86_64/lib
+
+CLIENTTARGET=client
+SERVERTARGET=server
+
+CLIENTCSRCS := \
+	$(SRC_DIR)/client.cpp \
+	$(SRC_DIR)/base.cpp
+
+SERVERCSRCS := \
+	$(SRC_DIR)/server.cpp \
+	$(SRC_DIR)/base.cpp
+
+CLIENTOBJS := $(CLIENTCSRCS:%.cpp=%.o)
+SERVEROBJS := $(SERVERCSRCS:%.cpp=%.o)
+
+
+INCLUDES := \
+	-I../gmssl_op_x86_64/include \
+    -I./
+
+all: $(CLIENTOBJS) $(SERVEROBJS) $(CLIENTTARGET) $(SERVERTARGET)
+$(CLIENTOBJS): %.o: %.cpp
+	$(CC) -c $(INCLUDES) $(CFLAGS) $^ -o $@
+$(SERVEROBJS): %.o: %.cpp
+	$(CC) -c $(INCLUDES) $(CFLAGS) $^ -o $@
+
+$(CLIENTTARGET): $(CLIENTOBJS)
+	$(CC)  -o $(CLIENTTARGET) $(INCLUDES) $(CFLAGS) $(CLIENTOBJS) -L$(EXTERNAL_LIB_DIR) $(EXTERNAL_LIB_NAME)
+
+$(SERVERTARGET): $(SERVEROBJS)
+	$(CC)  -o $(SERVERTARGET) $(INCLUDES) $(CFLAGS) $(SERVEROBJS) -L$(EXTERNAL_LIB_DIR) $(EXTERNAL_LIB_NAME)
+
+
+clean:
+	$(DEL)  $(TARGET) *.o client server
